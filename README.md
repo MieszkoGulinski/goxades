@@ -1,5 +1,22 @@
 # goxades
-Implementation of XAdES signature in golang
+
+Implementation of XAdES signature in golang. Improvement of the original [goxades](https://github.com/artemkunich/goxades) library by adding customizable serialization of issuer signature.
+
+## Improvement
+
+Previously, the issuer signature was serialized using the default serialization method `pkix.Name.String()`, which is not compatible with [Polish KSeF API](https://github.com/CIRFMF/ksef-docs/blob/main/auth/podpis-xades.md). The API requires the issuer signature to be serialized in the format [returned by C# built-in `X509Certificate2.Issuer` property](https://github.com/CIRFMF/ksef-client-csharp/blob/main/KSeF.Client/Api/Services/SignatureService.cs#L150).
+
+Format returned by `pkix.Name.String()`:
+```
+SERIALNUMBER=TINPL-8126178616,CN=A R,C=PL,2.5.4.42=#130141,2.5.4.4=#130152
+```
+
+Format returned by the official C# client:
+```
+G=A, SN=R, SERIALNUMBER=TINPL-1192154885, CN=A R, C=PL
+```
+
+The modification to `goxades` allows adding a custom serialization method for the issuer signature.
 
 ## Installation
 

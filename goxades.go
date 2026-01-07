@@ -52,6 +52,7 @@ type SigningContext struct {
 	Canonicalizer     dsig.Canonicalizer
 	Hash              crypto.Hash
 	KeyStore          MemoryX509KeyStore
+	IssuerSerializer  IssuerSerializer
 }
 
 type SignedDataContext struct {
@@ -130,8 +131,12 @@ func CreateSignature(signedData *etree.Element, ctx *SigningContext) (*etree.Ele
 	if signingTime.IsZero() {
 		signingTime = time.Now()
 	}
+	issuerSerializer := ctx.IssuerSerializer
+	if issuerSerializer == nil {
+		issuerSerializer = DefaultIssuerSerializer
+	}
 	//DigestValue of signedProperties
-	signedProperties := createSignedProperties(&ctx.KeyStore, signingTime)
+	signedProperties := createSignedProperties(&ctx.KeyStore, signingTime, issuerSerializer)
 	qualifiedSignedProperties := createQualifiedSignedProperties(signedProperties)
 
 	digestProperties, err := DigestValue(qualifiedSignedProperties, &ctx.PropertiesContext.Canonicalizer, ctx.PropertiesContext.Hash)
@@ -350,7 +355,7 @@ func createQualifiedSignedProperties(signedProperties *etree.Element) *etree.Ele
 	return qualifiedSignedProperties
 }
 
-func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time) *etree.Element {
+func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, serializeIssuer IssuerSerializer) *etree.Element {
 
 	digestMethod := etree.Element{
 		Space: xmldsigPrefix,
@@ -377,7 +382,7 @@ func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time) *e
 		Space: xmldsigPrefix,
 		Tag:   "X509IssuerName",
 	}
-	x509IssuerName.SetText(keystore.Cert.Issuer.String())
+	x509IssuerName.SetText(serializeIssuer(keystore.Cert.Issuer))
 	x509SerialNumber := etree.Element{
 		Space: xmldsigPrefix,
 		Tag:   "X509SerialNumber",
