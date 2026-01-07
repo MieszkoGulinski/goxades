@@ -24,7 +24,7 @@ The modification to `goxades` allows adding a custom serialization method for th
 
 Previously, the hash of signed properties was always calculated using SHA-1 algorithm, which is not compatible with [Polish KSeF API](https://github.com/CIRFMF/ksef-docs/blob/main/auth/podpis-xades.md). The API requires the hash of signed properties to be calculated using SHA-256.
 
-The modification to `goxades` is to use the hash function specified by the user in `SigningContext` for hashing the signed properties.
+The modification to `goxades` is to allow user to configure the function to hash the signed properties by `ctx.SignedPropertiesHash` option, and if it's unspecified, use the hash function from `ctx.Hash`. This way, if the user uses SHA-256 for other parts of the signature, SHA-256 will be used for the signed properties too.
 
 ## Installation
 
@@ -82,10 +82,11 @@ func main() {
 			Canonicalizer: canonicalizer,
 			Hash:          crypto.SHA256,
 		},
-		Canonicalizer:    canonicalizer,
-		Hash:             crypto.SHA256,
-		KeyStore:         *keyStore,
-		IssuerSerializer: xades.IssuerSerializerKSeF, // <- custom issuer serialization
+		Canonicalizer:        canonicalizer,
+		Hash:                 crypto.SHA256,
+		KeyStore:             *keyStore,
+		IssuerSerializer:     xades.IssuerSerializerKSeF, // <- custom issuer serialization (optional)
+		SignedPropertiesHash: crypto.SHA256,              // <- custom hash function for signed properties (optional)
 	}
 	signature, err := xades.CreateSignature(root, &signContext)
 	if err != nil {
