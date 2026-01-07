@@ -17,6 +17,9 @@ const (
 	Namespace     string = "http://uri.etsi.org/01903/v1.3.2#"
 )
 
+const DefaultSigningTimeFormat = "2006-01-02T15:04:05Z"
+const SigningTimeFormatKSeF = "2006-01-02T15:04:05.0000000+00:00"
+
 const (
 	SignedPropertiesTag          string = "SignedProperties"
 	SignedSignaturePropertiesTag string = "SignedSignatureProperties"
@@ -51,6 +54,7 @@ type SigningContext struct {
 	Canonicalizer        dsig.Canonicalizer
 	Hash                 crypto.Hash
 	SignedPropertiesHash crypto.Hash
+	SigningTimeFormat    string
 	KeyStore             MemoryX509KeyStore
 	IssuerSerializer     IssuerSerializer
 }
@@ -143,7 +147,7 @@ func CreateSignature(signedData *etree.Element, ctx *SigningContext) (*etree.Ele
 		issuerSerializer = DefaultIssuerSerializer
 	}
 	//DigestValue of signedProperties
-	signedProperties := createSignedProperties(&ctx.KeyStore, signingTime, issuerSerializer, ctx.signedPropertiesHash())
+	signedProperties := createSignedProperties(&ctx.KeyStore, signingTime, issuerSerializer, ctx.signedPropertiesHash(), ctx.SigningTimeFormat)
 	qualifiedSignedProperties := createQualifiedSignedProperties(signedProperties)
 
 	digestProperties, err := DigestValue(qualifiedSignedProperties, &ctx.PropertiesContext.Canonicalizer, ctx.PropertiesContext.Hash)
@@ -362,10 +366,13 @@ func createQualifiedSignedProperties(signedProperties *etree.Element) *etree.Ele
 	return qualifiedSignedProperties
 }
 
-func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, serializeIssuer IssuerSerializer, digestHash crypto.Hash) *etree.Element {
+func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, serializeIssuer IssuerSerializer, digestHash crypto.Hash, signingTimeFormat string) *etree.Element {
 
 	if digestHash == 0 || !digestHash.Available() {
 		digestHash = crypto.SHA1
+	}
+	if signingTimeFormat == "" {
+		signingTimeFormat = DefaultSigningTimeFormat
 	}
 
 	digestMethod := etree.Element{
@@ -423,7 +430,7 @@ func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, se
 		Space: Prefix,
 		Tag:   SigningTimeTag,
 	}
-	signingTime.SetText(signTime.Format("2006-01-02T15:04:05Z"))
+	signingTime.SetText(signTime.Format(signingTimeFormat))
 
 	signedSignatureProperties := etree.Element{
 		Space: Prefix,

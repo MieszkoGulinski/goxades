@@ -87,6 +87,7 @@ func main() {
 		KeyStore:             *keyStore,
 		IssuerSerializer:     xades.IssuerSerializerKSeF, // <- custom issuer serialization (optional)
 		SignedPropertiesHash: crypto.SHA256,              // <- custom hash function for signed properties (optional)
+		SigningTimeFormat:    "2006-01-02T15:04:05.0000000+00:00", // <- custom signing time format (optional)
 	}
 	signature, err := xades.CreateSignature(root, &signContext)
 	if err != nil {

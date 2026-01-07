@@ -197,6 +197,61 @@ func TestSignature(t *testing.T) {
 	}
 }
 
+func TestSignatureSigningTimeFormatOverride(t *testing.T) {
+	doc := etree.NewDocument()
+	err := doc.ReadFromString(testXML)
+	require.NoError(t, err)
+
+	signedData := doc.Root()
+
+	keyStore, err := getTestKeyStore()
+	require.NoError(t, err)
+
+	signingTime, err := time.Parse("2006-01-02T15:04:05Z", "2020-01-01T00:00:00Z")
+	require.NoError(t, err)
+
+	c14N10ExclusiveCanonicalizer := dsig.MakeC14N10ExclusiveCanonicalizerWithPrefixList("")
+
+	customFormat := "2006-01-02T15:04:05.0000000-07:00"
+
+	ctx := &SigningContext{
+		DataContext: SignedDataContext{
+			Canonicalizer: c14N10ExclusiveCanonicalizer,
+			Hash:          crypto.SHA256,
+			IsEnveloped:   true,
+			ReferenceURI:  "#signedData",
+		},
+		PropertiesContext: SignedPropertiesContext{
+			Canonicalizer: c14N10ExclusiveCanonicalizer,
+			Hash:          crypto.SHA256,
+			SigninigTime:  signingTime,
+		},
+		Canonicalizer:     c14N10ExclusiveCanonicalizer,
+		Hash:              crypto.SHA256,
+		SigningTimeFormat: customFormat,
+		KeyStore:          *keyStore,
+	}
+
+	signature, err := CreateSignature(signedData, ctx)
+	require.NoError(t, err)
+
+	object := signature.FindElement(xmldsigPrefix + ":" + "Object")
+	require.NotEmpty(t, object)
+
+	qualifyingProperties := object.FindElement(Prefix + ":" + QualifyingPropertiesTag)
+	require.NotEmpty(t, qualifyingProperties)
+
+	signedProperties := qualifyingProperties.FindElement(Prefix + ":" + SignedPropertiesTag)
+	require.NotEmpty(t, signedProperties)
+
+	signedSignatureProperties := signedProperties.FindElement(Prefix + ":" + SignedSignaturePropertiesTag)
+	require.NotEmpty(t, signedSignatureProperties)
+
+	signingTimeElement := signedSignatureProperties.FindElement(Prefix + ":" + SigningTimeTag)
+	require.NotEmpty(t, signingTimeElement)
+	require.Equal(t, ctx.PropertiesContext.SigninigTime.Format(customFormat), signingTimeElement.Text())
+}
+
 func testSignature(t *testing.T, signedData *etree.Element, ctx *SigningContext) {
 	signature, err := CreateSignature(signedData, ctx)
 	require.NoError(t, err)
@@ -338,10 +393,8 @@ func testObject(t *testing.T, keyInfo *etree.Element, ctx *SigningContext) {
 	signingTime := signedSignatureProperties.FindElement(Prefix + ":" + SigningTimeTag)
 	require.NotEmpty(t, signingTime)
 
-	signTime, err := time.Parse("2006-01-02T15:04:05Z", signingTime.Text())
-	require.NoError(t, err)
 	if !ctx.PropertiesContext.SigninigTime.IsZero() {
-		require.Equal(t, ctx.PropertiesContext.SigninigTime.Format("2006-01-02T15:04:05Z"), signTime.Format("2006-01-02T15:04:05Z"))
+		require.Equal(t, ctx.PropertiesContext.SigninigTime.Format(DefaultSigningTimeFormat), signingTime.Text())
 	}
 
 	signingCertificate := signedSignatureProperties.FindElement(Prefix + ":" + SigningCertificateTag)
