@@ -74,9 +74,10 @@ func main() {
 			Canonicalizer: canonicalizer,
 			Hash:          crypto.SHA256,
 		},
-		Canonicalizer: canonicalizer,
-		Hash:          crypto.SHA256,
-		KeyStore:      *keyStore,
+		Canonicalizer:    canonicalizer,
+		Hash:             crypto.SHA256,
+		KeyStore:         *keyStore,
+		IssuerSerializer: xades.IssuerSerializerKSeF, // <- custom issuer serialization
 	}
 	signature, err := xades.CreateSignature(root, &signContext)
 	if err != nil {
@@ -139,6 +140,4 @@ func loadCert(keyPath string, certPath string) (*xades.MemoryX509KeyStore, error
 		CertBinary: blockc.Bytes,
 	}, nil
 }
-
-
 
