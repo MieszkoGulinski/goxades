@@ -2,7 +2,6 @@ package xades
 
 import (
 	"crypto"
-	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -124,6 +123,25 @@ func getSigningContextMap(t *testing.T) (ctxMap map[*SigningContext]string) {
 		Hash:          crypto.SHA256,
 		KeyStore:      *keyStore,
 	}
+	ctxMap[ctx] = "jIlM1qagNw82BC8I6xtRnj03L9QeX+hhOeebaEGaU3TfKAjccMlc6ZppgbgMYHXWNVKpk4boBh5nkt9MjYBXTixi9t5gVG7JeAgi2zk67qLwhSkvjfTTsmluw0/zpIkDpUS9lc08p32pcnlZIEPQr4U66W/b26gWGFkSvrKf+MZwliagksDNRo8buXiYDh/BcWhb+IpPB/JEhxzwetT7UHgZ3G0EhnQaZmcgW2kS2bNXnuj2zTjUJIC0vjYBJ+g04kSl/Cq2d5plAQOaM0KsZSjqNtNQGKufcQ74qIuGUJN56acQye7417oFnOWy4HMnXrNkMFLqNSook0tOGpWYqw=="
+
+	ctx = &SigningContext{
+		DataContext: SignedDataContext{
+			Canonicalizer: c14N10ExclusiveCanonicalizer,
+			Hash:          crypto.SHA256,
+			IsEnveloped:   true,
+			ReferenceURI:  "#signedData",
+		},
+		PropertiesContext: SignedPropertiesContext{
+			Canonicalizer: c14N10ExclusiveCanonicalizer,
+			Hash:          crypto.SHA256,
+			SigninigTime:  signingTime,
+		},
+		Canonicalizer:        c14N10ExclusiveCanonicalizer,
+		Hash:                 crypto.SHA256,
+		SignedPropertiesHash: crypto.SHA1,
+		KeyStore:             *keyStore,
+	}
 	ctxMap[ctx] = "qCBQF0f51nnIa44jR89dgE2KBhnrkq41i0YFYtpIDXQFpzoFubuWLuHbEeP1V8KTImkWkSWzsg2h8sdVaZ7r7E6ABZKyCC4u12aHI/Tzq0yuNP9/VkdIzkKOLRbzPfjQVSZWGjkpOnwA5Q2HsN579oqQovrTikJ+W5At9ux79SOLNmZJFZp5QMC2Hn1fWoBWdXnuwAFLLqhspVpPRZq9qXeVcxwtbWN+Z9KYEt96NLWCgHYAxqrNauN4IJ+dpYPOo3w1NHucsb78PvWCGHlfmBYOgAzGkfqTJ/fqfbBTxeYBWBJKVYvJjlMivLh3Ss/dHSJEvU6pRFLUFXf9D9KHnQ=="
 
 	ctx = &SigningContext{
@@ -140,6 +158,24 @@ func getSigningContextMap(t *testing.T) (ctxMap map[*SigningContext]string) {
 		Canonicalizer: c14N10ExclusiveCanonicalizer,
 		Hash:          crypto.SHA256,
 		KeyStore:      *keyStore,
+	}
+	ctxMap[ctx] = "WLIvXN63qQS+iIQCHbqStTrt6YTUO3V09wsxncMt6H038NIAHCoT+52i8W5BC5UIbVxeM0PvAgKA8yNo7ULrJp30oOMHec0r4TWIAKlBXr7n05Kodhpu/VtiqzDwMks6F1IrrcuQSEQBW2GDi6KCQSlIOibFtEFxI7buxxPTH1L8dqzXxMnqiqj2E50yx7q8czK2e3Hpq6VrKfb6yLwxXYUVn1rTsItBwqOoqMgTEqfjC0m9JndXiDhXdxj9no0Pj+jr6Igbr3pvsW0gTzbNW2OD7GAfXf804y3V+2b1aQX8pbIG4GMOsc4DxazHHoTThYFpr5DTcHdCyBVl5BmExA=="
+
+	ctx = &SigningContext{
+		DataContext: SignedDataContext{
+			Canonicalizer: c14N10ExclusiveCanonicalizer,
+			Hash:          crypto.SHA1,
+			ReferenceURI:  "#signedData",
+		},
+		PropertiesContext: SignedPropertiesContext{
+			Canonicalizer: c14N10ExclusiveCanonicalizer,
+			Hash:          crypto.SHA1,
+			SigninigTime:  signingTime,
+		},
+		Canonicalizer:        c14N10ExclusiveCanonicalizer,
+		Hash:                 crypto.SHA256,
+		SignedPropertiesHash: crypto.SHA1,
+		KeyStore:             *keyStore,
 	}
 	ctxMap[ctx] = "0NjE/1BhL8vRz3bKujsFFkuyPvnANBVdWWShf7RIhrElJOg9TtuK6QGPrADx8B5zjCPOA74Gi7HdMmlQa5SNyAny+qGElMquw9i2ou4VSZkhaho1Xz9Hn5DprqKBnCLL0fS7JV+5TgmfoMz0R2oEWwFzoa7fz4rFu84AGKq4tidwk8Qq5hJ6XsVnLiaQq1h4etKGBh2wSopMFemI5k8dbS/VK/M+Ue7N01QgnC5FzRrzEw/5+ZTQndnUfpa11LzGJuretHuQYVrDLzbuqtOmNVyEjyziACB3yr8D2MFYaLZutQ9JBa44EuVjQj7w9qBLFk1ceBee/TDxc5hb5Zo+8Q=="
 
@@ -321,12 +357,14 @@ func testObject(t *testing.T, keyInfo *etree.Element, ctx *SigningContext) {
 	require.NotEmpty(t, digestMethod)
 	algorithmAttr := digestMethod.SelectAttr(":" + dsig.AlgorithmAttr)
 	require.NotEmpty(t, algorithmAttr)
-	require.Equal(t, digestAlgorithmIdentifiers[crypto.SHA1], algorithmAttr.Value)
+	propsHash := ctx.signedPropertiesHash()
+	require.Equal(t, digestAlgorithmIdentifiers[propsHash], algorithmAttr.Value)
 
 	digestValue := certDigest.FindElement(xmldsigPrefix + ":" + dsig.DigestValueTag)
 	require.NotEmpty(t, digestValue)
-	hash := sha1.Sum(ctx.KeyStore.CertBinary)
-	require.Equal(t, base64.StdEncoding.EncodeToString(hash[0:]), digestValue.Text())
+	hash := propsHash.New()
+	_, _ = hash.Write(ctx.KeyStore.CertBinary)
+	require.Equal(t, base64.StdEncoding.EncodeToString(hash.Sum(nil)), digestValue.Text())
 
 	issuerSerial := cert.FindElement(Prefix + ":" + IssuerSerialTag)
 	require.NotEmpty(t, issuerSerial)

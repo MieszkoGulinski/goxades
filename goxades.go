@@ -3,7 +3,6 @@ package xades
 import (
 	"crypto"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
 	"time"
@@ -47,12 +46,20 @@ var signatureMethodIdentifiers = map[crypto.Hash]string{
 }
 
 type SigningContext struct {
-	DataContext       SignedDataContext
-	PropertiesContext SignedPropertiesContext
-	Canonicalizer     dsig.Canonicalizer
-	Hash              crypto.Hash
-	KeyStore          MemoryX509KeyStore
-	IssuerSerializer  IssuerSerializer
+	DataContext          SignedDataContext
+	PropertiesContext    SignedPropertiesContext
+	Canonicalizer        dsig.Canonicalizer
+	Hash                 crypto.Hash
+	SignedPropertiesHash crypto.Hash
+	KeyStore             MemoryX509KeyStore
+	IssuerSerializer     IssuerSerializer
+}
+
+func (ctx *SigningContext) signedPropertiesHash() crypto.Hash {
+	if ctx.SignedPropertiesHash != 0 {
+		return ctx.SignedPropertiesHash
+	}
+	return ctx.Hash
 }
 
 type SignedDataContext struct {
@@ -68,19 +75,19 @@ type SignedPropertiesContext struct {
 	SigninigTime  time.Time
 }
 
-//MemoryX509KeyStore struct
+// MemoryX509KeyStore struct
 type MemoryX509KeyStore struct {
 	PrivateKey *rsa.PrivateKey
 	Cert       *x509.Certificate
 	CertBinary []byte
 }
 
-//GetKeyPair func
+// GetKeyPair returns the private key and certificate binary
 func (ks *MemoryX509KeyStore) GetKeyPair() (*rsa.PrivateKey, []byte, error) {
 	return ks.PrivateKey, ks.CertBinary, nil
 }
 
-//DigestValue calculate hash for digest
+// DigestValue calculates hash for digest
 func DigestValue(element *etree.Element, canonicalizer *dsig.Canonicalizer, hash crypto.Hash) (base64encoded string, err error) {
 
 	canonical, err := (*canonicalizer).Canonicalize(element)
@@ -98,7 +105,7 @@ func DigestValue(element *etree.Element, canonicalizer *dsig.Canonicalizer, hash
 	return
 }
 
-//SignatureValue calculate signature
+// SignatureValue calculates signature
 func SignatureValue(element *etree.Element, canonicalizer *dsig.Canonicalizer, hash crypto.Hash, keyStore *MemoryX509KeyStore) (base64encoded string, err error) {
 
 	canonical, err := (*canonicalizer).Canonicalize(element)
@@ -118,7 +125,7 @@ func SignatureValue(element *etree.Element, canonicalizer *dsig.Canonicalizer, h
 	return
 }
 
-//CreateSignature create filled signature element
+// CreateSignature creates a filled signature element
 func CreateSignature(signedData *etree.Element, ctx *SigningContext) (*etree.Element, error) {
 
 	//DigestValue of signedData
@@ -136,7 +143,7 @@ func CreateSignature(signedData *etree.Element, ctx *SigningContext) (*etree.Ele
 		issuerSerializer = DefaultIssuerSerializer
 	}
 	//DigestValue of signedProperties
-	signedProperties := createSignedProperties(&ctx.KeyStore, signingTime, issuerSerializer)
+	signedProperties := createSignedProperties(&ctx.KeyStore, signingTime, issuerSerializer, ctx.signedPropertiesHash())
 	qualifiedSignedProperties := createQualifiedSignedProperties(signedProperties)
 
 	digestProperties, err := DigestValue(qualifiedSignedProperties, &ctx.PropertiesContext.Canonicalizer, ctx.PropertiesContext.Hash)
@@ -355,13 +362,17 @@ func createQualifiedSignedProperties(signedProperties *etree.Element) *etree.Ele
 	return qualifiedSignedProperties
 }
 
-func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, serializeIssuer IssuerSerializer) *etree.Element {
+func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, serializeIssuer IssuerSerializer, digestHash crypto.Hash) *etree.Element {
+
+	if digestHash == 0 || !digestHash.Available() {
+		digestHash = crypto.SHA1
+	}
 
 	digestMethod := etree.Element{
 		Space: xmldsigPrefix,
 		Tag:   dsig.DigestMethodTag,
 		Attr: []etree.Attr{
-			{Key: dsig.AlgorithmAttr, Value: digestAlgorithmIdentifiers[crypto.SHA1]},
+			{Key: dsig.AlgorithmAttr, Value: digestAlgorithmIdentifiers[digestHash]},
 		},
 	}
 
@@ -369,8 +380,9 @@ func createSignedProperties(keystore *MemoryX509KeyStore, signTime time.Time, se
 		Space: xmldsigPrefix,
 		Tag:   dsig.DigestValueTag,
 	}
-	hash := sha1.Sum(keystore.CertBinary)
-	digestValue.SetText(base64.StdEncoding.EncodeToString(hash[0:]))
+	hash := digestHash.New()
+	_, _ = hash.Write(keystore.CertBinary)
+	digestValue.SetText(base64.StdEncoding.EncodeToString(hash.Sum(nil)))
 
 	certDigest := etree.Element{
 		Space: Prefix,
