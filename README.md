@@ -26,6 +26,10 @@ Previously, the hash of signed properties was always calculated using SHA-1 algo
 
 The modification to `goxades` is to allow user to configure the function to hash the signed properties by `ctx.SignedPropertiesHash` option, and if it's unspecified, use the hash function from `ctx.Hash`. This way, if the user uses SHA-256 for other parts of the signature, SHA-256 will be used for the signed properties too.
 
+### Signing time format
+
+Previously, the signing time was always formatted using the format `2006-01-02T15:04:05Z`. The modification to `goxades` is to allow user to configure the function to format the signing time by `ctx.SigningTimeFormat`.
+
 ## Installation
 
 Install `goxades` using `go get`:
