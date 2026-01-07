@@ -13,12 +13,12 @@ Format returned by `pkix.Name.String()`:
 SERIALNUMBER=TINPL-8126178616,CN=A R,C=PL,2.5.4.42=#130141,2.5.4.4=#130152
 ```
 
-Format returned by the official C# client:
+Format returned by the official KSeF C# client:
 ```
 G=A, SN=R, SERIALNUMBER=TINPL-1192154885, CN=A R, C=PL
 ```
 
-The modification to `goxades` allows adding a custom serialization method for the issuer signature.
+The modification to `goxades` allows adding a custom serialization method for the issuer signature. The format expected by KSeF is available in the `IssuerSerializerKSeF` function.
 
 ### Hash of signed properties
 
@@ -28,7 +28,7 @@ The modification to `goxades` is to allow user to configure the function to hash
 
 ### Signing time format
 
-Previously, the signing time was always formatted using the format `2006-01-02T15:04:05Z`. The modification to `goxades` is to allow user to configure the function to format the signing time by `ctx.SigningTimeFormat`.
+Previously, the signing time was always formatted using the format `2006-01-02T15:04:05Z`. The modification to `goxades` is to allow user to configure the function to format the signing time by `ctx.SigningTimeFormat`. The format expected by KSeF is available in the `SigningTimeFormatKSeF` constant.
 
 ## Installation
 
